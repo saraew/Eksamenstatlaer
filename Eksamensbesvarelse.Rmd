@@ -1,0 +1,130 @@
+
+---
+subtitle: "TMA4268 Statistical Learning V2019"
+title: "Compulsory exercise 3"
+author: "Sara Elise Wøllo)"
+date: "19 4 2020"
+output: 
+ # html_document
+  pdf_document
+---
+  
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
+                      cache=TRUE, size="scriptsize",fig.width=4, fig.height=3)
+```
+
+```{r rpackages,eval=TRUE,echo=FALSE}
+# install.packages("knitr") #probably already installed
+# install.packages("rmarkdown") #probably already installed
+# install.packages("ggplot2") #plotting with ggplot
+# install.packages("ggfortify")  
+# install.packages("MASS")  
+# install.packages("dplyr")  
+library(knitr)
+library(rmarkdown)
+library(ggplot2)
+library(ggfortify)
+library(MASS)
+library(dplyr)
+```
+
+
+# Problem 1
+
+
+## a)
+
+## b)
+
+## c)
+
+## d)
+
+
+
+# Problem 2
+
+```{r}
+id <- "1CA1RPRYqU9oTIaHfSroitnWrI6WpUeBw"  # google file ID
+d.corona <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+    id), header = T)
+```
+
+```{r}
+count(d.corona, country, deceased)
+count(d.corona, sex, deceased)
+count(d.corona, country, sex, deceased)
+```
+We see that there are 14 (5 female (f), 9 male (m)) deceased in France, 2 (1 (f), 1 (m)) in Indonesia, 3 (0 (f), 3 (m)) in Japan and 26 ( 8(f), 18 (m)) in Korea. 
+There are 14 females deceased and 31 males deceased. 
+
+
+
+## a)
+
+
+## b) 
+
+
+## c)
+
+## d)
+
+## e)
+
+## f)
+
+
+
+
+# Problem 3
+
+## a)
+
+## b)
+
+## c)
+
+## d)
+
+## e)
+
+
+
+
+# Problem 4
+
+## a)
+
+## b)
+
+## c)
+
+
+
+# Problem 5
+
+## a)
+ i) True, ii) True, iii) False, iv) Unsure (You can use reg, but is it a method for reg?)
+
+## b)
+i) False ii) True iii)  False iv) True?
+
+## c) Single choice
+
+True: iv) ? [it increases, but can we say that it is a steady increase?]
+
+## d) Single choice
+
+True: ii) [is it always true? In general, it performs worse with more p]
+
+## e) Single choice - ???
+i)  ii)  iii)   iv) 
+
+## f)
+i) True ii) False ? (can happen, but not always true. as sensitivity increases, specificity doesn't HAVE to go down)  iii)  False iv) True
+
+## g)
+i) True  ii) False iii) True  iv) True
