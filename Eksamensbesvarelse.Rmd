@@ -22,21 +22,53 @@ knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.wh
 # install.packages("ggfortify")  
 # install.packages("MASS")  
 # install.packages("dplyr")  
+# install.packages("keras")
 library(knitr)
 library(rmarkdown)
 library(ggplot2)
 library(ggfortify)
 library(MASS)
 library(dplyr)
+library(GGally)
+library(ggplot2)
+library(ISLR)
+library(keras)
 ```
+
 
 
 # Problem 1
 
-
 ## a)
+```{r}
+
+set.seed(1)
+College$Private = as.numeric(College$Private)
+train.ind = sample(1:nrow(College), 0.5 * nrow(College))
+college.train = College[train.ind, ]
+college.test = College[-train.ind, ]
+str(College)
+
+outstate.train = subset(college.train, select = c(Outstate) )
+outstate.test = subset(college.test, select = c(Outstate) )
+college.train = subset(college.train, select = -c(Outstate) )
+college.test = subset(college.test, select = -c(Outstate) )
+
+mean <- apply(college.train, 2, mean)
+std <- apply(college.train, 2, sd)
+college.train <- scale(college.train, center = mean, scale = std)
+college.test <- scale(college.test, center = mean, scale = std)
+```
+
+
+
+
 
 ## b)
+$$
+
+\hat{y}_1
+$$
 
 ## c)
 
@@ -52,34 +84,146 @@ d.corona <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",
     id), header = T)
 ```
 
+
+
+## a)
 ```{r}
 count(d.corona, country, deceased)
 count(d.corona, sex, deceased)
 count(d.corona, country, sex, deceased)
+
+
 ```
 We see that there are 14 (5 female (f), 9 male (m)) deceased in France, 2 (1 (f), 1 (m)) in Indonesia, 3 (0 (f), 3 (m)) in Japan and 26 ( 8(f), 18 (m)) in Korea. 
 There are 14 females deceased and 31 males deceased. 
 
 
 
-## a)
-
-
 ## b) 
+Kan (kanskje) løse den brute force, men det er lite elegant. 
+```{r, fig.width = 8, fig.asp = 1}
+
+fit <-glm(deceased~sex + age + country, data = d.corona, family = "binomial")
+fit
+
+ggplot(data = d.corona, aes(age, deceased)) + geom_point()
+
+summary(fit)
+
+```
+
+i) False? It is split into several covaraiates in the model ii) False? Don't need to remove from model even though it is not sig. iii) True iv) True
+
+:::iii) Odds ratio
+```{r}
+eta = -7.633051 + (1.137246*1) + (0.068012*31) -(0.754259*0) -(2.434101*1) - (1.366797*0)  
+
+
+newdata = exp(eta)/(1 + exp(eta))
+newdata
+
+odds = newdata / (1-newdata)
+odds
+
+
+```
+
 
 
 ## c)
 
-## d)
+```{r, fig.width = 6, fig.asp = 1}
+grid_fr_m = expand.grid(sex="male",age= seq(20,100,1) ,country="France")
+grid_fr_f = expand.grid(sex="female",age= seq(20,100,1) ,country="France")
+grid_in_m = expand.grid(sex="male",age= seq(20,100,1) ,country="indonesia")
+grid_in_f = expand.grid(sex="female",age= seq(20,100,1) ,country="indonesia")
+grid_ja_m = expand.grid(sex="male",age= seq(20,100,1) ,country="japan")
+grid_ja_f = expand.grid(sex="female",age= seq(20,100,1) ,country="japan")
+grid_ko_m = expand.grid(sex="male",age= seq(20,100,1) ,country="Korea")
+grid_ko_f = expand.grid(sex="female",age= seq(20,100,1) ,country="Korea")
+
+m_france = predict.glm(fit, newdata = grid_fr_m, type = "response")
+f_france = predict.glm(fit, newdata = grid_fr_f, type = "response")
+m_indo = predict.glm(fit, newdata = grid_in_m, type = "response")
+f_indo = predict.glm(fit, newdata = grid_in_f, type = "response")
+m_japan = predict.glm(fit, newdata = grid_ja_m, type = "response")
+f_japan = predict.glm(fit, newdata = grid_ja_f, type = "response")
+m_korea = predict.glm(fit, newdata = grid_ko_m, type = "response")
+f_korea = predict.glm(fit, newdata = grid_ko_f, type = "response")
+```
+
+
+```{r, fig.width = 6, fig.asp = 1}
+plot(males_france, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death")
+lines(f_france, lwd = 1, col = 2)
+lines(m_indo, lwd = 1, col = 3)
+lines(f_indo, lwd = 1, col = 4)
+lines(m_japan, lwd = 1, col = 5)
+lines(f_japan, lwd = 1, col = 6)
+lines(m_korea, lwd = 1, col = 7)
+lines(f_korea, lwd = 1, col = 8)
+title("Probability to die of Coronavirus, for country and sex")
+legend(x = "topleft",legend = c("France,m","France,f", "Indonesia,m", "Indonesia,f", "Japan,m", "Japan,f", "Korea,m", "Korea,f"), lwd=c(2,2,2,2,2,2,2,2), col=c(1,2,3,4,5,6,7,8), y.intersp=1)
+
+
+```
+
+## d) [should I fit one more model?]
+i) True. As you see from the plot "Probability to die of Coronavirus, for sex". Add \ref{}. Males have higher probability of death. 
+ii) Yes? At a low age, the mortality rates are similar, but at age increases, the mortality rates increases faster for men than for women. 
+iii) Yes? The mortality rate for the Frence population is higher even at low ages, but the difference increases as age increaces. 
+
+```{r, fig.width=5, fig.height=5}
+fit <-glm(deceased~sex + age, data = d.corona, family = "binomial")
+fit
+
+fit_country <- glm(deceased~ age + country, data = d.corona, family = "binomial")
+
+grid_f = expand.grid(sex="female",age= seq(20,100,1))
+grid_m = expand.grid(sex="male",age= seq(20,100,1))
+f_pred = predict.glm(fit, newdata = grid_f, type = "response")
+m_pred = predict.glm(fit, newdata = grid_m, type = "response")
+
+grid_france = expand.grid(age= seq(20,100,1), country = "France")
+grid_korea = expand.grid(age= seq(20,100,1), country = "Korea")
+france_pred = predict.glm(fit_country, newdata = grid_france, type = "response")
+korea_pred = predict.glm(fit_country, newdata = grid_korea, type = "response")
+```
+
+
+```{r, fig.width=5, fig.height=5}
+plot(f_pred, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death", xlim = c(0,90), ylim = c(0,0.5))
+lines(m_pred, lwd = 1, col = 2)
+lines(france_pred, lwd = 1, col = 3)
+lines(korea_pred, lwd = 1, col = 4)
+
+title("Probability to die of Coronavirus")
+legend(x = "topleft",legend = c("Female","Male", "France", "Korea"), lwd=c(2,2,2,2), col=c(1,2,3,4), y.intersp=1)
+
+
+```
 
 ## e)
 
-## f)
+Without knowing how the data was collected, this is not a result we can trust. We don't know how many were tested, and how sick people needed to be to be tested. If France only tested the people that were hospitalized, and the other countries tested more people with milder symptons, then it makes sense for France to have a higher mortality rate. 
 
+## f)
+i) True ii) True iii) True? (sometimes it is more important that ppl that deafault loans are predicted to default, than that people who don't default are predicted to not default. men her sa stefanie at de er vektet likt)  iv) False?? Not sure, might be useful. The error rate is not that high?
 
 
 
 # Problem 3
+```{r}
+# id <- "1heRtzi8vBoBGMaM2-ivBQI5Ki3HgJTmO"  # google file ID
+# d.support <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+#     id), header = T)
+# # We only look at complete cases
+# d.support <- d.support[complete.cases(d.support), ]
+# d.support <- d.support[d.support$totcst > 0, ]
+
+```
+
+
 
 ## a)
 
@@ -98,11 +242,29 @@ There are 14 females deceased and 31 males deceased.
 
 ## a)
 
+Basis functions: 
+$$
+b_1(x) = X \text{, } b_2(x) = X^2 \text{, } b_3(x) = X^3 \text{, } b_4(x) = (X-1)_+^3 \text{, } b_5(x) = (X-2)_+^3.
+
+$$
+Design matrix: Usikker på hvordan jeg skal gjøre det... Skal det være en nxp-matrise, skal det være subskript på x-ene? Skal jeg bruke bs()? tror jeg skal skrive for hånd.. 
+$$
+
+\begin{bmatrix}
+1 & x_1 & x_1^2 & x_1^3 & (x_1-1)_+^3 & (x_1-2)_+^3 \\
+1 & x_2 & x_2^2 & x_2^3 & (x_2-1)_+^3 & (x_2-2)_+^3 \\
+\vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
+1 & x_n & x_n^2 & x_n^3 & (x_n-1)_+^3 & (x_n-2)_+^3 \\
+\end{bmatrix}
+
+$$
+
 ## b)
+i) True ii) True? iii) True iv) False
 
 ## c)
 
-
+i) False ii) False iii) False? (too small difference r) iv) False
 
 # Problem 5
 
@@ -114,11 +276,11 @@ i) False ii) True iii)  False iv) True?
 
 ## c) Single choice
 
-True: iv) ? [it increases, but can we say that it is a steady increase?]
+True: iv) 
 
 ## d) Single choice
 
-True: ii) [is it always true? In general, it performs worse with more p]
+True: ii) 
 
 ## e) Single choice - ???
 i)  ii)  iii)   iv) 
