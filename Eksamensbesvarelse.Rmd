@@ -53,20 +53,30 @@ library(randomForest)
 ```{r}
 
 set.seed(1)
+
 College$Private = as.numeric(College$Private)
 train.ind = sample(1:nrow(College), 0.5 * nrow(College))
 college.train = College[train.ind, ]
 college.test = College[-train.ind, ]
-str(college.train)
-outstate.train = subset(college.train, select = c(Outstate) )
-outstate.test = subset(college.test, select = c(Outstate) )
-college.train = subset(college.train, select = -c(Outstate) )
-college.test = subset(college.test, select = -c(Outstate) )
 
-mean <- apply(college.train, 2, mean)
-std <- apply(college.train, 2, sd)
-college.train <- scale(college.train, center = mean, scale = std)
-college.test <- scale(college.test, center = mean, scale = std)
+
+college.train.pr=college.train
+college.test.pr=college.test
+college.train.pr$Outstate = NULL #Removing the Outstate column, it will be used in y_train
+college.test.pr$Outstate = NULL #Removing the Outstate column, it will be used in y_test
+
+mean <- apply(college.train.pr, 2, mean)
+std <- apply(college.train.pr, 2, sd)
+college.train.data <- scale(college.train.pr, center = mean, scale = std)
+college.test.data <- scale(college.test.pr, center = mean, scale = std)
+
+
+#Divide into redictors and response
+x_train = college.train.data
+x_test = college.test.data
+
+y_train=college.train$Outstate
+y_test=college.test$Outstate
 ```
 
 
@@ -75,42 +85,75 @@ college.test <- scale(college.test, center = mean, scale = std)
 
 ## b)
 $$
-y_1 =\Big(1 + \exp \Big( -\beta_{01} - \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) \Big)^{-1}\Big)
+y_1 =\beta_{01} + \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) 
 $$
 
 
-Using Sigmoid activation on the output layer.
+Using linear activation on the output layer.
 ## c)
 
 ```{r}
-# set.seed(1)
-# train.in = sample(1:nrow(college.train), 0.8 * nrow(college.train))
-# college.train1 = college.train[train.in, ]
-# college.vali = college.train[-train.in, ]
-# str(college.train1)
+
+#Making the model
+model <- keras_model_sequential() 
+model %>% layer_dense(units = 64, activation = "relu", 
+                        input_shape = c(17)) %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1, activation = "linear")
+summary(model)
+
+model %>% compile(optimizer = "rmsprop", loss = "mse", metrics = c("accuracy"))
+
+history = model %>% fit(x_train, y_train, epochs = 300, batch_size = 8,
+validation_split = 0.2)
 ```
 ```{r}
-model = keras_model_sequential() %>% 
-  layer_dense(units = 64, activation = 'relu', input_shape = c(388)) %>% 
-  layer_dense(units = 64, activation = 'relu') %>%
-  layer_dense(units = 1, activation = 'sigmoid')
+score=model %>% evaluate(x_test, y_test)
+score
 ```
 
-```{r}
-model %>% compile(
-optimizer = "rmsprop",
-loss = "binary_crossentropy", metrics = c("accuracy")
-)
-```
+
+
+
+KODEEKS: 
 
 ```{r}
-# set.seed(123)
-# history = model %>% fit(college.train$x,college.train$y,
-# epochs = 300,
-# batch_size = 8,
-# validation_split = 0.2)
-# 
-# str(history)
+college.train.pred=college.train
+college.test.pred=college.test
+college.train.pred$Outstate <- NULL #Removing the Outstate column, it will be used in y_train
+college.test.pred$Outstate <- NULL #Removing the Outstate column, it will be used in y_test
+mean <- apply(college.train.pred, 2, mean)
+std <- apply(college.train.pred, 2, sd)
+train_data <- (scale(college.train.pred, center = mean, scale = std))
+test_data <- (scale(college.test.pred, center = mean, scale = std))
+
+#Splitting into predictors and response
+x_train=train_data
+x_test=test_data
+
+y_train=college.train$Outstate
+y_test=college.test$Outstate
+
+# reshape, might not be necessary
+x_train <- array_reshape(x_train, c(nrow(x_train), 17))
+x_test <- array_reshape(x_test, c(nrow(x_test), 17))
+
+# rescale response into one-hot
+#y_train <- one_hot(y_train)
+#y_train <- to_categorical(y_train)
+
+#Making the model
+model <- keras_model_sequential() 
+model %>% layer_dense(units = 64, activation = "relu", 
+                        input_shape = c(17)) %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1, activation = "linear")
+summary(model)
+
+model %>% compile(optimizer = "rmsprop", loss = "mse", metrics = c("accuracy"))
+
+history = model %>% fit(x_train, y_train, epochs = 300, batch_size = 8,
+validation_split = 0.2)
 ```
 
 
