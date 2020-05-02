@@ -23,6 +23,10 @@ knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.wh
 # install.packages("MASS")  
 # install.packages("dplyr")  
 # install.packages("keras")
+#install.packages("pls")
+# install.packages("gam")
+# install.packages("tree")
+# install.packages("randomForest")
 library(knitr)
 library(rmarkdown)
 library(ggplot2)
@@ -34,6 +38,11 @@ library(ggplot2)
 library(ISLR)
 library(keras)
 #install_keras()
+library(glmnet)
+library(pls)
+library(gam)
+library(tree)
+library(randomForest)
 ```
 
 
@@ -66,9 +75,10 @@ college.test <- scale(college.test, center = mean, scale = std)
 
 ## b)
 $$
-
-\hat{y}_1 =\Big(1 + \exp \Big( -\beta_{01} - \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) \Big)^{-1}\Big)
+y_1 =\Big(1 + \exp \Big( -\beta_{01} - \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) \Big)^{-1}\Big)
 $$
+
+
 Using Sigmoid activation on the output layer.
 ## c)
 
@@ -94,13 +104,13 @@ loss = "binary_crossentropy", metrics = c("accuracy")
 ```
 
 ```{r}
-set.seed(123)
-history = model %>% fit(college.train$x,college.train$y,
-epochs = 300,
-batch_size = 8,
-validation_split = 0.2)
-
-str(history)
+# set.seed(123)
+# history = model %>% fit(college.train$x,college.train$y,
+# epochs = 300,
+# batch_size = 8,
+# validation_split = 0.2)
+# 
+# str(history)
 ```
 
 
@@ -186,7 +196,7 @@ f_korea = predict.glm(fit, newdata = grid_ko_f, type = "response")
 
 
 ```{r, fig.width = 6, fig.asp = 1}
-plot(males_france, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death")
+plot(m_france, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death")
 lines(f_france, lwd = 1, col = 2)
 lines(m_indo, lwd = 1, col = 3)
 lines(f_indo, lwd = 1, col = 4)
@@ -312,13 +322,114 @@ d.support.train = d.support[train.ind, ]
 d.support.test = d.support[-train.ind, ]
 
 
+
 ```
 
 
-## d)
+```{r}
+set.seed(12345)
 
+lambdas <- 10^seq(2, -3, by = -.1)
+
+x_train <- model.matrix(totcst~ .,data=d.support.train)
+y_train <- d.support.train$totcst
+
+ridge_mod <- glmnet(x_train,y_train ,family="gaussian", alpha = 0)
+cv.out <- cv.glmnet(x_train, y_train, aplha = 0)
+plot(cv.out)
+lambda_1se <- cv.out$lambda.1se
+```
+The largest value of lambda such that the eror is within 1 std.error of the smallest lambda is 315.80.
+
+```{r}
+x_test <- model.matrix(totcst~ .,data=d.support.test)
+y_test <- d.support.test$totcst
+
+ridge_pred <-predict(ridge_mod, s = lambda_1se, newx = x_test)
+mse_ridge <- mean(as.numeric((ridge_pred-y_test)^2))
+mse_ridge
+```
+The test MSE of the ridge regression using lambda = 315.80 is 0.8636056.
+
+## d)
+i)
+
+```{r}
+set.seed(1)
+pls_mod <- plsr(totcst~., data = d.support.train, scale = TRUE, validation = "CV")
+
+```
+
+```{r}
+validationplot(pls_mod, val.type = "MSEP")
+MSEP(pls_mod)
+selectNcomp(pls_mod, method = "onesigma")
+```
+
+
+From the standard error of the CV residuals, we find that the best no. of componenets is 3. 
+
+iii) 
+
+```{r}
+pls_pred = predict(pls_mod, d.support.test, ncomp=3)
+head(pls_pred)
+pls_sq_err <- as.numeric((pls_pred-d.support.test$totcst)^2)
+mse_pls = mean(pls_sq_err)
+mse_pls
+```
+The MSE of the test set when using 3 PCs are 0.86644. 
+
+```{r}
+mse_ridge
+mse_pls
+```
+The MSE is similar, but the MSE from PLS is slightly higher. One is not significantly better than the other.  
 ## e)
 
+i) 
+```{r, height = 5, width = 5}
+fitgam = gam(totcst ~ bs(age, knots = c(40,60,80)) + poly(num.co, 3) + s(edu, df = 5) + income + race + s(meanbp, df = 5) +s(hrt, df = 5) + bs(resp, knots = c(20)) + bs(temp, knots = c(35,37,38)) + poly(pafi, 2) + bs(scoma, knots = c(10,30))  + dzgroup, data = d.support.train)
+
+# plot covariates
+par(mfrow = c(2, 3))
+plot(fitgam, se = TRUE, col = "blue")
+# summary of fitted model
+summary(fitgam)
+
+gam_pred = predict(fitgam, d.support.test)
+head(gam_pred)
+gam_sq_err <- as.numeric((gam_pred-d.support.test$totcst)^2)
+mse_gam = mean(gam_sq_err)
+mse_gam
+
+```
+The choices of which transformation of the covariates was chosen, were done by plotting the different covariates and finding a suitable transfomation, depending on the spread of the data. Also, I spent some time trying out how the different transformations affected the different covariates. 
+
+
+
+
+ii)
+
+
+
+```{r}
+#Bagging with random forest
+set.seed(1)
+oob.err = double(13)
+mse_bag = double(13)
+ntree = 350
+for(mtry in 1:13){
+  fit = randomForest(totcst~., data = d.support.train, mtry=mtry, ntree = ntree, importance = TRUE)
+  oob.err[mtry] = fit$mse[ntree]
+  pred = predict(fit, d.support.test)
+  mse_bag[mtry] = with(d.support.test, mean((d.support.test$totcst-pred)^2 ))
+}
+min(mse_bag)
+```
+Using bagging, we find that the MSE is 0.8232. 
+
+This is the mest model fitted in this exercise. Bagging is suitable for regression tree problems like this is. I did this because the result from a standard regression tree was too poor. 
 
 
 
