@@ -2,8 +2,8 @@
 ---
 subtitle: "TMA4268 Statistical Learning V2019"
 title: "Compulsory exercise 3"
-author: "Sara Elise Wøllo)"
-date: "19 4 2020"
+author: "Sara Elise Wøllo"
+date: "03.05.2020"
 output: 
  # html_document
   pdf_document
@@ -13,6 +13,7 @@ output:
 library(knitr)
 knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
                       cache=TRUE, size="scriptsize",fig.width=4, fig.height=3)
+whichformat = "latex"
 ```
 
 ```{r rpackages,eval=TRUE,echo=FALSE}
@@ -51,30 +52,24 @@ library(randomForest)
 
 ## a)
 ```{r}
-
-set.seed(1)
-
+set.seed(123)
 College$Private = as.numeric(College$Private)
 train.ind = sample(1:nrow(College), 0.5 * nrow(College))
 college.train = College[train.ind, ]
 college.test = College[-train.ind, ]
 
-
 college.train.pr=college.train
 college.test.pr=college.test
 college.train.pr$Outstate = NULL #Removing the Outstate column, it will be used in y_train
 college.test.pr$Outstate = NULL #Removing the Outstate column, it will be used in y_test
-
+#normalize
 mean <- apply(college.train.pr, 2, mean)
 std <- apply(college.train.pr, 2, sd)
 college.train.data <- scale(college.train.pr, center = mean, scale = std)
 college.test.data <- scale(college.test.pr, center = mean, scale = std)
-
-
 #Divide into redictors and response
 x_train = college.train.data
 x_test = college.test.data
-
 y_train=college.train$Outstate
 y_test=college.test$Outstate
 ```
@@ -85,14 +80,15 @@ y_test=college.test$Outstate
 
 ## b)
 $$
-y_1 =\beta_{01} + \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) 
+\hat{y_1} =\beta_{01} + \sum_{m=1}^{64} \beta_{m1} max \Big( \gamma_{0m}\sum_{l=1}^{64} \gamma_{lm} max \Big( \alpha_{0l}\sum_{j=1}^{17}\alpha_{jl}x_j,0 \Big),0\Big) 
 $$
 
-
 Using linear activation on the output layer.
+
 ## c)
 
 ```{r}
+set.seed(123)
 
 #Making the model
 model <- keras_model_sequential() 
@@ -100,70 +96,50 @@ model %>% layer_dense(units = 64, activation = "relu",
                         input_shape = c(17)) %>%
   layer_dense(units = 64, activation = "relu") %>%
   layer_dense(units = 1, activation = "linear")
-summary(model)
+#summary(model)
 
 model %>% compile(optimizer = "rmsprop", loss = "mse", metrics = c("accuracy"))
 
 history = model %>% fit(x_train, y_train, epochs = 300, batch_size = 8,
 validation_split = 0.2)
+plot(history)
+
 ```
-```{r}
-score=model %>% evaluate(x_test, y_test)
-score
-```
-
-
-
-
-KODEEKS: 
 
 ```{r}
-college.train.pred=college.train
-college.test.pred=college.test
-college.train.pred$Outstate <- NULL #Removing the Outstate column, it will be used in y_train
-college.test.pred$Outstate <- NULL #Removing the Outstate column, it will be used in y_test
-mean <- apply(college.train.pred, 2, mean)
-std <- apply(college.train.pred, 2, sd)
-train_data <- (scale(college.train.pred, center = mean, scale = std))
-test_data <- (scale(college.test.pred, center = mean, scale = std))
-
-#Splitting into predictors and response
-x_train=train_data
-x_test=test_data
-
-y_train=college.train$Outstate
-y_test=college.test$Outstate
-
-# reshape, might not be necessary
-x_train <- array_reshape(x_train, c(nrow(x_train), 17))
-x_test <- array_reshape(x_test, c(nrow(x_test), 17))
-
-# rescale response into one-hot
-#y_train <- one_hot(y_train)
-#y_train <- to_categorical(y_train)
-
-#Making the model
-model <- keras_model_sequential() 
-model %>% layer_dense(units = 64, activation = "relu", 
-                        input_shape = c(17)) %>%
-  layer_dense(units = 64, activation = "relu") %>%
-  layer_dense(units = 1, activation = "linear")
-summary(model)
-
-model %>% compile(optimizer = "rmsprop", loss = "mse", metrics = c("accuracy"))
-
-history = model %>% fit(x_train, y_train, epochs = 300, batch_size = 8,
-validation_split = 0.2)
+mse_nn=model %>% evaluate(x_test, y_test)
+mse_nn[1]
 ```
+We see that the MSE is 5369839, which is larger than the methods uses in compulsory 2, indicating a wrse fit. 
 
 
 ## d)
 
+```{r}
+set.seed(123)
 
+#Making the model
+model <- keras_model_sequential() 
+model %>% layer_dense(units = 64, activation = "relu",
+                      kernel_regularizer = regularizer_l1_l2(l1 = 0.01, l2 = 0.05), 
+                        input_shape = c(17)) %>%
+  layer_dense(units = 64, activation = "relu",kernel_regularizer = regularizer_l1_l2(l1 = 0.01, l2 = 0.05)) %>%
+  layer_dense(units = 1, activation = "linear")
+#summary(model)
+
+model %>% compile(optimizer = "rmsprop", loss = "mse", metrics = c("accuracy"))
+
+history = model %>% fit(x_train, y_train, epochs = 300, batch_size = 8,
+validation_split = 0.2)
+#MSE
+mse_nn_l1=model %>% evaluate(x_test, y_test)
+mse_nn_l1[1]
+```
+This improves the network slightly, to an MSE of 5255636, but it is not a large improvement. 
 
 # Problem 2
 
-```{r}
+```{r, echo = FALSE}
 id <- "1CA1RPRYqU9oTIaHfSroitnWrI6WpUeBw"  # google file ID
 d.corona <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", 
     id), header = T)
@@ -176,8 +152,6 @@ d.corona <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",
 count(d.corona, country, deceased)
 count(d.corona, sex, deceased)
 count(d.corona, country, sex, deceased)
-
-
 ```
 We see that there are 14 (5 female (f), 9 male (m)) deceased in France, 2 (1 (f), 1 (m)) in Indonesia, 3 (0 (f), 3 (m)) in Japan and 26 ( 8(f), 18 (m)) in Korea. 
 There are 14 females deceased and 31 males deceased. 
@@ -185,39 +159,21 @@ There are 14 females deceased and 31 males deceased.
 
 
 ## b) 
-Kan (kanskje) løse den brute force, men det er lite elegant. 
-```{r, fig.width = 8, fig.asp = 1}
+
+```{r, fig.width = 4, fig.height = 2}
 
 fit <-glm(deceased~sex + age + country, data = d.corona, family = "binomial")
-fit
-
-ggplot(data = d.corona, aes(age, deceased)) + geom_point()
-
-summary(fit)
-
+#ggplot(data = d.corona, aes(age, deceased)) + geom_point()
+#summary(fit)
 ```
 
-i) False? It is split into several covaraiates in the model ii) False? Don't need to remove from model even though it is not sig. iii) True iv) True
-
-:::iii) Odds ratio
-```{r}
-eta = -7.633051 + (1.137246*1) + (0.068012*31) -(0.754259*0) -(2.434101*1) - (1.366797*0)  
-
-
-newdata = exp(eta)/(1 + exp(eta))
-newdata
-
-odds = newdata / (1-newdata)
-odds
-
-
-```
+i) False ii) False iii) True iv) True
 
 
 
 ## c)
 
-```{r, fig.width = 6, fig.asp = 1}
+```{r, fig.width = 6, fig.asp = 1, echo = FALSE}
 grid_fr_m = expand.grid(sex="male",age= seq(20,100,1) ,country="France")
 grid_fr_f = expand.grid(sex="female",age= seq(20,100,1) ,country="France")
 grid_in_m = expand.grid(sex="male",age= seq(20,100,1) ,country="indonesia")
@@ -238,7 +194,7 @@ f_korea = predict.glm(fit, newdata = grid_ko_f, type = "response")
 ```
 
 
-```{r, fig.width = 6, fig.asp = 1}
+```{r, fig.width = 5, fig.height=3.8}
 plot(m_france, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death")
 lines(f_france, lwd = 1, col = 2)
 lines(m_indo, lwd = 1, col = 3)
@@ -253,17 +209,17 @@ legend(x = "topleft",legend = c("France,m","France,f", "Indonesia,m", "Indonesia
 
 ```
 
-## d) [should I fit one more model?]
-i) True. As you see from the plot "Probability to die of Coronavirus, for sex". Add \ref{}. Males have higher probability of death. 
-ii) Yes? At a low age, the mortality rates are similar, but at age increases, the mortality rates increases faster for men than for women. 
-iii) Yes? The mortality rate for the Frence population is higher even at low ages, but the difference increases as age increaces. 
+## d) 
+
 
 ```{r, fig.width=5, fig.height=5}
 fit <-glm(deceased~sex + age, data = d.corona, family = "binomial")
-fit
-
 fit_country <- glm(deceased~ age + country, data = d.corona, family = "binomial")
+fit_sex <-lm(deceased~sex, data = d.corona)
+```
 
+
+```{r, fig.width=5, fig.height=5, echo = FALSE}
 grid_f = expand.grid(sex="female",age= seq(20,100,1))
 grid_m = expand.grid(sex="male",age= seq(20,100,1))
 f_pred = predict.glm(fit, newdata = grid_f, type = "response")
@@ -273,32 +229,48 @@ grid_france = expand.grid(age= seq(20,100,1), country = "France")
 grid_korea = expand.grid(age= seq(20,100,1), country = "Korea")
 france_pred = predict.glm(fit_country, newdata = grid_france, type = "response")
 korea_pred = predict.glm(fit_country, newdata = grid_korea, type = "response")
+
+grid_female = expand.grid(sex="female")
+grid_male = expand.grid(sex="male")
+female_pred = predict.glm(fit_sex, newdata = grid_female, type = "response")
+male_pred = predict.glm(fit_sex, newdata = grid_male, type = "response")
+```
+
+```{r}
+#Probability of men to die of Coronavirus
+male_pred
+#Probability of women to die of Coronavirus
+female_pred
 ```
 
 
-```{r, fig.width=5, fig.height=5}
+```{r, fig.width=5, fig.height=3}
 plot(f_pred, type = "l", lwd = 1, col = 1, xlab="Age", ylab="Probability of death", xlim = c(0,90), ylim = c(0,0.5))
 lines(m_pred, lwd = 1, col = 2)
 lines(france_pred, lwd = 1, col = 3)
 lines(korea_pred, lwd = 1, col = 4)
-
-title("Probability to die of Coronavirus")
+title("2: Probability to die of Coronavirus")
 legend(x = "topleft",legend = c("Female","Male", "France", "Korea"), lwd=c(2,2,2,2), col=c(1,2,3,4), y.intersp=1)
 
-
 ```
+
+i) True. Probability for men to die is 3.4 percent, whereas probability for women is 1.3 percent. You can also see from the plot "2: Probability to die of Coronavirus" that Males have higher probability of death than women at all ages. 
+
+ii) True. At a low age, the mortality rates are similar, but at age increases, the mortality rates increases faster for men than for women. 
+
+iii) True. The mortality rate for the Frence population is higher even at low ages, but the difference increases as age increaces. 
 
 ## e)
 
 Without knowing how the data was collected, this is not a result we can trust. We don't know how many were tested, and how sick people needed to be to be tested. If France only tested the people that were hospitalized, and the other countries tested more people with milder symptons, then it makes sense for France to have a higher mortality rate. 
 
 ## f)
-i) True ii) True iii) True? (sometimes it is more important that ppl that deafault loans are predicted to default, than that people who don't default are predicted to not default. men her sa stefanie at de er vektet likt)  iv) False?? Not sure, might be useful. The error rate is not that high?
+i) True ii) True iii) True  iv) False
 
 
 
 # Problem 3
-```{r}
+```{r, echo=FALSE}
 id <- "1heRtzi8vBoBGMaM2-ivBQI5Ki3HgJTmO"  # google file ID
 d.support <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",
     id), header = T)
@@ -311,20 +283,27 @@ d.support <- d.support[d.support$totcst > 0, ]
 
 
 ## a)
-```{r}
+```{r,fig.height=4, fig.width=5}
+par(mfrow=c(3,2),mar=c(2,1,1,1))
 hist(d.support$totcst,plot=TRUE, main = "Total cost")
 hist(d.support$age,plot=TRUE, main = "Age of patient")
 hist(d.support$num.co,plot=TRUE, main = "No. of co-morbidities")
 hist(d.support$edu,plot=TRUE, main = "Years of education")
 hist(d.support$scoma,plot=TRUE, main = "Measure fo Glasgow coma scale")
 hist(d.support$meanbp,plot=TRUE, main = "Mean blood pressure")
+```
+
+
+```{r,fig.height=5, fig.width=5}
+par(mfrow=c(3,2),mar=c(2,1,1,1))
 hist(d.support$hrt,plot=TRUE, main = "Heart rate")
 hist(d.support$resp,plot=TRUE, main = "Respatory frequency")
 hist(d.support$temp,plot=TRUE, main = "Body temperature")
 hist(d.support$pafi,plot=TRUE, main = "Pa02/Fi02 proportion")
 ```
+
 I suggest a logarithmic transformation to the variable totcst, histogram seen here:
-```{r}
+```{r, fig.height=3, fig.width=4}
 hist(log(d.support$totcst),plot=TRUE, main = "Log of total cost")
 #From now, we use the transformed version of totcst
 d.support$totcst = log(d.support$totcst)
@@ -335,26 +314,34 @@ d.support$totcst = log(d.support$totcst)
 
 ```{r}
 fit = glm(totcst~age+temp+edu+resp+num.co+dzgroup, data = d.support)
-summary(fit)
+#summary(fit)
 ```
 
 ```{r}
 new_grid = expand.grid(age=c(10,20,30,40,50,60,70,80,90),temp= 36 ,edu = 10,resp = 20, num.co = 2, dzgroup = "CHF")
 
-log_cost = predict.glm(fit,newdata = new_grid, type = "response")
-cost = exp(log_cost)
+cost = exp(predict.glm(fit,newdata = new_grid, type = "response"))
 cost
 ```
 i) When a patient's age increases by 10 years, the cost increase by factor 0.93244 (or equivalently, decrease by factor 1.07245).
 
 ii) 
 
-```{r}
+```{r, fig.height=3, fig.width=3}
 plot(fit)
 ```
+
 We see from the Q-Q-diagram that the distibrution is normal, and not skewed. We see from the residuals vs. fitted-plot that there is no clear pattern, indicating that the assumptions in the model are fulfilled.
 
 iii) 
+
+```{r}
+# Interaction term
+fit = glm(totcst~age+temp+edu+resp+num.co+dzgroup + age*dzgroup, data = d.support)
+summary(fit)$coefficients[,4]
+```
+
+Yes, we can see that the effect of age depends on the disease group. for Coma patients and MOSF-patients, the p-values suggest that the interaction is significant, whereas for other diseases, p-value suggests that there is not as big of an age effect. 
 
 ## c)
 
@@ -363,36 +350,25 @@ set.seed(12345)
 train.ind = sample(1:nrow(d.support), 0.8 * nrow(d.support))
 d.support.train = d.support[train.ind, ]
 d.support.test = d.support[-train.ind, ]
-
-
-
-```
-
-
-```{r}
-set.seed(12345)
-
 lambdas <- 10^seq(2, -3, by = -.1)
-
 x_train <- model.matrix(totcst~ .,data=d.support.train)
 y_train <- d.support.train$totcst
-
 ridge_mod <- glmnet(x_train,y_train ,family="gaussian", alpha = 0)
 cv.out <- cv.glmnet(x_train, y_train, aplha = 0)
 plot(cv.out)
 lambda_1se <- cv.out$lambda.1se
+lambda_1se
 ```
-The largest value of lambda such that the eror is within 1 std.error of the smallest lambda is 315.80.
+The largest value of lambda such that the eror is within 1 std.error of the smallest lambda is 0.02152102.
 
 ```{r}
 x_test <- model.matrix(totcst~ .,data=d.support.test)
 y_test <- d.support.test$totcst
-
 ridge_pred <-predict(ridge_mod, s = lambda_1se, newx = x_test)
 mse_ridge <- mean(as.numeric((ridge_pred-y_test)^2))
 mse_ridge
 ```
-The test MSE of the ridge regression using lambda = 315.80 is 0.8636056.
+The test MSE of the ridge regression using lambda = 0.02152102 is 0.8636056.
 
 ## d)
 i)
@@ -400,12 +376,13 @@ i)
 ```{r}
 set.seed(1)
 pls_mod <- plsr(totcst~., data = d.support.train, scale = TRUE, validation = "CV")
-
 ```
+
+ii)
 
 ```{r}
 validationplot(pls_mod, val.type = "MSEP")
-MSEP(pls_mod)
+#MSEP(pls_mod)
 selectNcomp(pls_mod, method = "onesigma")
 ```
 
@@ -416,45 +393,37 @@ iii)
 
 ```{r}
 pls_pred = predict(pls_mod, d.support.test, ncomp=3)
-head(pls_pred)
-pls_sq_err <- as.numeric((pls_pred-d.support.test$totcst)^2)
-mse_pls = mean(pls_sq_err)
+mse_pls <- mean(as.numeric((pls_pred-d.support.test$totcst)^2))
 mse_pls
 ```
-The MSE of the test set when using 3 PCs are 0.86644. 
+The MSE of the test set when using 3 PCs are 0.8664414. 
 
 ```{r}
 mse_ridge
 mse_pls
 ```
 The MSE is similar, but the MSE from PLS is slightly higher. One is not significantly better than the other.  
+
 ## e)
 
 i) 
 ```{r, height = 5, width = 5}
 fitgam = gam(totcst ~ bs(age, knots = c(40,60,80)) + poly(num.co, 3) + s(edu, df = 5) + income + race + s(meanbp, df = 5) +s(hrt, df = 5) + bs(resp, knots = c(20)) + bs(temp, knots = c(35,37,38)) + poly(pafi, 2) + bs(scoma, knots = c(10,30))  + dzgroup, data = d.support.train)
+```
 
-# plot covariates
-par(mfrow = c(2, 3))
-plot(fitgam, se = TRUE, col = "blue")
-# summary of fitted model
-summary(fitgam)
 
+```{r, height = 5, width = 5}
+#summary(fitgam) not added, as there was not enough space
 gam_pred = predict(fitgam, d.support.test)
-head(gam_pred)
 gam_sq_err <- as.numeric((gam_pred-d.support.test$totcst)^2)
 mse_gam = mean(gam_sq_err)
 mse_gam
 
 ```
-The choices of which transformation of the covariates was chosen, were done by plotting the different covariates and finding a suitable transfomation, depending on the spread of the data. Also, I spent some time trying out how the different transformations affected the different covariates. 
-
-
+The choices of which transformation of the covariates was chosen, were done by plotting the different covariates and finding a suitable transfomation, depending on the spread of the data. Also, I spent some time trying out how the different transformations affected the different covariates. But, using this GAM, the MSE was 0.8330579. 
 
 
 ii)
-
-
 
 ```{r}
 #Bagging with random forest
@@ -470,7 +439,7 @@ for(mtry in 1:13){
 }
 min(mse_bag)
 ```
-Using bagging, we find that the MSE is 0.8232. 
+Using bagging, we find that the MSE is 0.8181038. 
 
 This is the mest model fitted in this exercise. Bagging is suitable for regression tree problems like this is. I did this because the result from a standard regression tree was too poor. 
 
@@ -481,20 +450,20 @@ This is the mest model fitted in this exercise. Bagging is suitable for regressi
 ## a)
 
 Basis functions: 
+
 $$
 b_1(x) = X \text{, } b_2(x) = X^2 \text{, } b_3(x) = X^3 \text{, } b_4(x) = (X-1)_+^3 \text{, } b_5(x) = (X-2)_+^3.
-
-$$
-Design matrix: Usikker på hvordan jeg skal gjøre det... Skal det være en nxp-matrise, skal det være subskript på x-ene? Skal jeg bruke bs()? tror jeg skal skrive for hånd.. 
 $$
 
+Design matrix:
+
+$$
 \begin{bmatrix}
 1 & x_1 & x_1^2 & x_1^3 & (x_1-1)_+^3 & (x_1-2)_+^3 \\
 1 & x_2 & x_2^2 & x_2^3 & (x_2-1)_+^3 & (x_2-2)_+^3 \\
 \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
 1 & x_n & x_n^2 & x_n^3 & (x_n-1)_+^3 & (x_n-2)_+^3 \\
 \end{bmatrix}
-
 $$
 
 ## b)
@@ -502,29 +471,22 @@ i) True ii) True iii) True iv) False
 
 ## c)
 
-i) False ii) False iii) False? (too small difference r) iv) False
+i) False ii) False iii) False iv) False
 
 # Problem 5
 
 ## a)
- i) True, ii) True, iii) False, iv) Unsure (You can use reg, but is it a method for reg?)
-
+ i) True, ii) True, iii) False, iv) False
+ 
 ## b)
-i) False ii) True iii)  False iv) True?
+i) False ii) True iii)  False iv) True
 
-## c) Single choice
+## c,d,e)
 
-True: iv) 
-
-## d) Single choice
-
-True: ii) 
-
-## e) Single choice
-True: iv) 
+True: c: iv), d: ii), e: iv) 
 
 ## f)
-i) True ii) False ? (can happen, but not always true. as sensitivity increases, specificity doesn't HAVE to go down)  iii)  False iv) True
+i) True ii) True  iii)  False iv) True
 
 ## g)
 i) False  ii) True iii) True  iv) True

@@ -10,3 +10,8 @@ ISLR
 keras
 Matrix
 glmnet
+pls
+foreach
+gam
+tree
+randomForest
