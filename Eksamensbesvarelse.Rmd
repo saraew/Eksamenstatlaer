@@ -1,6 +1,6 @@
 
 ---
-subtitle: "TMA4268 Statistical Learning V2019"
+subtitle: "TMA4268 Statistical Learning V2020"
 title: "Compulsory exercise 3"
 author: "Sara Elise Wøllo"
 date: "03.05.2020"
